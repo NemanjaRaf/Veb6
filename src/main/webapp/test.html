@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Public Blog</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
+          integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
+    <style>
+        body { padding-top: 65px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
+    <a class="navbar-brand" href="#">Public Blog Platform</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContents"
+            aria-controls="navbarSupportedContents" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContents">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item">
+                <a class="nav-link" href="#" id="loginPage">Login</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" id="newPost">New Post</a>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <h1 class="text-center">Posts</h1>
+    <div id="postList" class="row"></div>
+</div>
+
+<!-- Modal for Post and Comment Form -->
+<div class="modal fade" id="postModal" tabindex="-1" aria-labelledby="postModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="postModalLabel">New Post</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="postForm">
+                    <div class="form-group">
+                        <label for="postTitle">Title</label>
+                        <input type="text" class="form-control" id="postUser" required disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="postTitle">Title</label>
+                        <input type="text" class="form-control" id="postTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="postContent">Content</label>
+                        <textarea class="form-control" id="postContent" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+
+        async function viewPostDetails(postId) {
+            const jwt = localStorage.getItem('jwt');
+            if (!jwt) {
+                alert('You need to be logged in to view details');
+                return;
+            }
+
+            let decoded = JSON.parse(atob(jwt.split('.')[1]));
+
+
+            try {
+                // Fetch comments for the post
+                const commentsResponse = await fetch(`/api/comments/${postId}`, {
+                    headers: { 'Authorization': 'Bearer ' + jwt }
+                });
+                if (!commentsResponse.ok) {
+                    throw new Error('Failed to fetch comments');
+                }
+                const comments = await commentsResponse.json();
+
+                // Create a comment display and form under the post
+                const postElement = $(`#comments-${postId}`);
+                postElement.removeClass('hidden');
+                const commentsHtml = comments.map(comment => `
+                    <div class="card mt-2">
+                        <div class="card-body">
+                            <p class="card-text">${comment.content}</p>
+                            <footer class="blockquote-footer">${comment.username}</footer>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Comment form
+                const commentFormHtml = `
+                    <div class="mt-3">
+                        <h5>Add a Comment</h5>
+                        <div id="commentForm-${postId}">
+                            <div class="form-group">
+                                <input class="form-control username" disabled value="${decoded.sub}">
+                            </div>
+                            <div class="form-group">
+                                <textarea class="form-control content" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary" onclick="addComment(${postId})">Submit</button>
+                        </div>
+                    </div>
+                `;
+
+                // Append comments and the comment form to the post element
+                postElement.html(`<div>${commentsHtml}</div>${commentFormHtml}`);
+
+                // Handle comment form submission
+                $(`#commentForm-${postId}`).on('submit', function (e) {
+                    e.preventDefault();
+                    const content = $(`#commentContent-${postId}`).val();
+                    submitComment(postId, content);
+                });
+            } catch (error) {
+                console.error('Error loading post details:', error);
+            }
+        }
+
+        async function addComment(post_id) {
+            const jwt = localStorage.getItem('jwt');
+            if (!jwt) {
+                alert('You need to be logged in to add a comment');
+                return;
+            }
+
+            let form = $(`#commentForm-${post_id}`);
+            let content = form.find('.content').val();
+            let username = form.find('.username').val();
+
+            try {
+                const response = await fetch('/api/comments', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + jwt,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ post_id, content, username })
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to post comment');
+                }
+                // Reload the comments to reflect the new one
+                viewPostDetails(post_id);
+            } catch (error) {
+                console.error('Failed to submit a comment:', error);
+            }
+        }
+
+        // Function to submit a comment
+        async function submitComment(postId, content) {
+            const jwt = localStorage.getItem('jwt');
+            if (!jwt) {
+                alert('You need to be logged in to add a comment');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/comments', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + jwt,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ postId, content })
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to post comment');
+                }
+                // Reload the comments to reflect the new one
+                viewPostDetails(postId);
+            } catch (error) {
+                console.error('Failed to submit a comment:', error);
+            }
+        }
+        // New Post Modal Trigger
+        $('#newPost').on('click', function () {
+            let jwt = localStorage.getItem('jwt');
+            if (!jwt) {
+                alert('You need to be logged in to submit a post');
+                return;
+            }
+            let decoded = JSON.parse(atob(jwt.split('.')[1]));
+            $('#postUser').val(decoded.sub);
+            $('#postModal').modal('show');
+        });
+
+        // Form Submission for New Post
+        $('#postForm').on('submit', function (e) {
+            e.preventDefault();
+            const title = $('#postTitle').val();
+            const content = $('#postContent').val();
+            const user = $('#postUser').val();
+            if (!title || !content) {
+                alert('Please fill in all fields');
+                return;
+            }
+            if (!user) {
+                alert('You need to be logged in to submit a post');
+                return;
+            }
+            submitNewPost(title, content, user);
+        });
+
+        // Function to load and display posts
+        async function loadPosts() {
+            const jwt = localStorage.getItem('jwt');
+            if (!jwt) {
+                alert('You need to be logged in to see the posts');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/posts', {
+                    headers: { 'Authorization': 'Bearer ' + jwt }
+                });
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const posts = await response.json();
+
+                displayPosts(posts);
+            } catch (error) {
+                console.error('There has been a problem with your fetch operation:', error);
+            }
+        }
+
+        // Display posts dynamically
+        function displayPosts(posts) {
+            const postList = $('#postList');
+            postList.empty(); // Clear existing posts
+
+            posts.forEach(post => {
+                const postHtml = `
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <div class="card-body" id="post-${post.id}">
+                                <h5 class="card-title">${post.title}</h5>
+                                <h6 class="card-subtitle mb-2 text-muted">${post.time}</h6>
+                                <p class="card-text">${post.content}</p>
+                                <a href="#" class="card-link" onclick="viewPostDetails('${post.id}')">View Details</a>
+                                <div id="comments-${post.id}" class="hidden">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                postList.append(postHtml);
+            });
+        }
+
+        // Function to submit new post
+        async function submitNewPost(title, content, username) {
+            const jwt = localStorage.getItem('jwt');
+            if (!jwt) {
+                alert('You need to be logged in to submit a post');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/posts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + jwt
+                    },
+                    body: JSON.stringify({ title, content, username})
+                });
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const newPost = await response.json();
+                loadPosts(); // Reload posts to include new one
+            } catch (error) {
+                console.error('Failed to create a post:', error);
+            }
+        }
+
+
+
+        $(document).ready(function () {
+            loadPosts();
+        });
+</script>
+
+
+
+</body>
+</html>

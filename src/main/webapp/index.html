@@ -18,6 +18,7 @@
         <ul class="navbar-nav mr-auto">
             <li class="nav-item">
                 <a class="nav-link" href="/subjects.html">Subjects</a>
+                <a class="nav-link" href="/login.html">Login</a>
             </li>
         </ul>
     </div>
@@ -27,7 +28,7 @@
 <div class="container">
     <h1 class="naslov">RAF Subjects</h1>
 
-    <form method="POST" action="/" id="subject-form">
+    <form method="POST" id="subject-form">
         <div class="form-group">
             <label for="subject-title">Subject</label>
             <input type="text" class="form-control" id="subject-title" placeholder="Enter subject">
@@ -48,78 +49,152 @@
 
 <script>
 
-
-    fetch('/api/subjects', {
-        method: 'GET'
-    }).then(response => {
-        return response.json();
-    }).then(subjects => {
-        console.log(subjects);
-        for (const subject of subjects) {
-            addSubjectElements(subject)
+    const fetchPosts = async () => {
+        let jwt = null;
+        if (localStorage.getItem('jwt')) {
+            jwt = localStorage.getItem('jwt');
         }
-    })
-
-    function addSubjectElements(subject) {
-        const subjectLinks = document.getElementById('subject-links');
-
-        const linkWrapperDiv = document.createElement('div');
-
-        const subjectLink = document.createElement('a');
-        subjectLink.innerText = subject.title;
-        subjectLink.href = '/subjects/' + subject.id;
-
-        const removeButton = document.createElement('button');
-        removeButton.innerText = 'Remove'
-        removeButton.classList.add('btn', 'btn-danger')
-        removeButton.style.marginLeft = '10px'
-        removeButton.onclick = function (e) {
-            deleteSubject(subject.id).then(() => {
-                subjectLinks.removeChild(linkWrapperDiv)
-            });
+        if (!jwt) {
+            return alert('You need to be logged in to see the posts');
         }
-        removeButton.hidden = true;
+        const response = await fetch('/api/posts', {
+            headers: {
+                'Authorization': 'Bearer ' + jwt,
+            }
+        });
+        const posts = await response.json();
 
-        linkWrapperDiv.appendChild(subjectLink);
-        linkWrapperDiv.appendChild(removeButton);
-        linkWrapperDiv.appendChild(document.createElement('br'));
-        linkWrapperDiv.appendChild(document.createElement('br'));
+        document.getElementById('subject-links').innerHTML = posts.map(post => {
+            return `
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title d-flex">
+                            ${post.title}
+                            <div class="ml-auto">
+                                <small>${post.time}</small>
+                            </div>
+                        </h5>
+                        <p class="card-text mt-3">${post.content}</p>
 
-        subjectLinks.appendChild(linkWrapperDiv);
+                        <p class="card-text mt-4 text-muted text-sm">Author: ${post.username}</p>
+
+                        <div id="comments-${post.id} mt-5" style="display: none">
+
+                        </div>
+                    </div>
+                    <div class="card-footer text-muted">
+                        <button class="btn btn-blue" onclick="viewComments('${post.id}')">Komentari</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return posts;
     }
 
-    function deleteSubject(id) {
-        return fetch('/api/subjects/'+id, {
-            method: 'DELETE'
-        })
+    let jwt = null;
+    if (localStorage.getItem('jwt')) {
+        jwt = localStorage.getItem('jwt');
+    }
+    window.onload = async () => {
+        await fetchPosts();
     }
 
     document.getElementById("subject-form").addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const subjectTitleElement = document.getElementById('subject-title');
+        if (!jwt) {
+            alert('You need to be logged in to create a subject');
+            return;
+        }
+        let decoded = jwt.split('.')[1];
+        decoded = atob(decoded);
+        console.log(decoded);
         const contentElement = document.getElementById('subject-content');
+        const subjectTitleElement = document.getElementById('subject-title');
 
         const title = subjectTitleElement.value;
         const content = contentElement.value;
+        const username = JSON.parse(decoded).sub;
 
-        fetch('/api/subjects', {
+        fetch('/api/posts', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + jwt,
             },
             body: JSON.stringify({
                 title: title,
-                content: content
+                content: content,
+                username: username
             })
         }).then(response => {
             return response.json();
         }).then(subject => {
-            addSubjectElements(subject)
-            subjectTitleElement.value = '';
-            contentElement.value = '';
+            console.log(subject);
         })
     })
+
+    // function addSubjectElements(subject) {
+    //     const subjectLinks = document.getElementById('subject-links');
+    //
+    //     const linkWrapperDiv = document.createElement('div');
+    //
+    //     const subjectLink = document.createElement('a');
+    //     subjectLink.innerText = subject.title;
+    //     subjectLink.href = '/posts/' + subject.id;
+    //
+    //     const removeButton = document.createElement('button');
+    //     removeButton.innerText = 'Remove'
+    //     removeButton.classList.add('btn', 'btn-danger')
+    //     removeButton.style.marginLeft = '10px'
+    //     removeButton.onclick = function (e) {
+    //         deleteSubject(subject.id).then(() => {
+    //             subjectLinks.removeChild(linkWrapperDiv)
+    //         });
+    //     }
+    //     removeButton.hidden = true;
+    //
+    //     linkWrapperDiv.appendChild(subjectLink);
+    //     linkWrapperDiv.appendChild(removeButton);
+    //     linkWrapperDiv.appendChild(document.createElement('br'));
+    //     linkWrapperDiv.appendChild(document.createElement('br'));
+    //
+    //     subjectLinks.appendChild(linkWrapperDiv);
+    // }
+    //
+    // function deleteSubject(id) {
+    //     return fetch('/api/subjects/'+id, {
+    //         method: 'DELETE'
+    //     })
+    // }
+    //
+    // document.getElementById("subject-form").addEventListener('submit', function(e) {
+    //     e.preventDefault();
+    //
+    //     const subjectTitleElement = document.getElementById('subject-title');
+    //     const contentElement = document.getElementById('subject-content');
+    //
+    //     const title = subjectTitleElement.value;
+    //     const content = contentElement.value;
+    //
+    //     fetch('/api/subjects', {
+    //         method: 'POST',
+    //         headers: {
+    //             'Content-Type': 'application/json'
+    //         },
+    //         body: JSON.stringify({
+    //             title: title,
+    //             content: content
+    //         })
+    //     }).then(response => {
+    //         return response.json();
+    //     }).then(subject => {
+    //         addSubjectElements(subject)
+    //         subjectTitleElement.value = '';
+    //         contentElement.value = '';
+    //     })
+    // })
 </script>
 </body>
 </html>

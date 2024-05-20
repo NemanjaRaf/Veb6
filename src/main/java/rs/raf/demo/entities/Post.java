@@ -4,9 +4,10 @@ import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 
 
-public class Subject {
+public class Post {
 
     private Integer id;
+    private String time;
 
     @NotNull(message = "Title field is required")
     @NotEmpty(message = "Title field is required")
@@ -16,18 +17,24 @@ public class Subject {
     @NotEmpty(message = "Content field is required")
     private String content;
 
-    public Subject() {
+    @NotNull(message = "Username field is required")
+    @NotEmpty(message = "Username field is required")
+    private String username;
+
+    public Post() {
     }
 
-    public Subject(String title, String content) {
+    public Post(String title, String content, String username) {
         this();
         this.title = title;
         this.content = content;
+        this.username = username;
     }
 
-    public Subject(Integer id, String title, String content) {
-        this(title, content);
+    public Post(Integer id, String title, String content, String username, String time) {
+        this(title, content, username);
         this.id = id;
+        this.time = time;
     }
 
     public Integer getId() {
@@ -52,5 +59,21 @@ public class Subject {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getTime() {
+        return time;
+    }
+
+    public void setTime(String time) {
+        this.time = time;
     }
 }

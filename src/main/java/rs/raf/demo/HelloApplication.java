@@ -3,9 +3,15 @@ package rs.raf.demo;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
-import rs.raf.demo.repositories.subject.InMemorySubjectRepository;
-import rs.raf.demo.repositories.subject.SubjectRepository;
-import rs.raf.demo.services.SubjectService;
+import rs.raf.demo.repositories.comment.CommentRepository;
+import rs.raf.demo.repositories.comment.MySqlCommentRepository;
+import rs.raf.demo.repositories.post.MySqlPostRepository;
+import rs.raf.demo.repositories.post.PostRepository;
+import rs.raf.demo.repositories.user.InMemoryUserRepository;
+import rs.raf.demo.repositories.user.UserRepository;
+import rs.raf.demo.services.CommentService;
+import rs.raf.demo.services.PostService;
+import rs.raf.demo.services.UserService;
 
 import javax.inject.Singleton;
 import javax.ws.rs.ApplicationPath;
@@ -21,15 +27,19 @@ public class HelloApplication extends ResourceConfig {
         AbstractBinder binder = new AbstractBinder() {
             @Override
             protected void configure() {
-                this.bind(InMemorySubjectRepository.class).to(SubjectRepository.class).in(Singleton.class);
+                this.bind(MySqlPostRepository.class).to(PostRepository.class).in(Singleton.class);
+                this.bind(InMemoryUserRepository.class).to(UserRepository.class).in(Singleton.class);
+                this.bind(MySqlCommentRepository.class).to(CommentRepository.class).in(Singleton.class);
 
-                this.bindAsContract(SubjectService.class);
+                this.bindAsContract(PostService.class);
+                this.bindAsContract(UserService.class);
+                this.bindAsContract(CommentService.class);
 
             }
         };
         register(binder);
 
         // Ucitavamo resurse
-        packages("rs.raf.demo.resources");
+        packages("rs.raf.demo");
     }
 }
